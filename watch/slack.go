@@ -43,6 +43,17 @@ func (s Slack) queryURL(message string) string {
 	return fmt.Sprintf(slackBaseUrl, s.Token, "%23hearthstone", escaped)
 }
 
+func (s Slack) Reassignment(user string) {
+	if len(s.Watchers) == 0 {
+		return
+	}
+
+	fmt.Println(user)
+	for _, watcher := range s.Watchers {
+		fmt.Println(watcher)
+	}
+}
+
 func (s Slack) Push(e *webhook.PushEvent) {
 	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
 
@@ -79,5 +90,6 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 }
 
 func (s *Slack) Listen() {
+	fmt.Println(s.Watchers)
 	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
 }

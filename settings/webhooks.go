@@ -6,11 +6,11 @@ import (
 )
 
 type Webhook struct {
-	Service string
-	Secret  string
-	Token   string
-	Port    int
-	Users   []string
+	Service  string
+	Secret   string
+	Token    string
+	Port     int
+	Watchers []string
 }
 
 type Webhooks []Webhook
