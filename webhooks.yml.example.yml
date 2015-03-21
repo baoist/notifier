@@ -1,0 +1,4 @@
+- service: slack
+  secret: foo
+  token: bar
+  port: 8080

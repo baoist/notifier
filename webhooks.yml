@@ -1,0 +1,6 @@
+- service: slack
+  secret: 7fb215854e67d5b7fc5812dfa6c787c52e1aff03
+  token: xoxp-2173239700-2173386307-4074120360-49456d
+  port: 8080
+  users:
+    - baoist
