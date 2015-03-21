@@ -40,7 +40,7 @@ type Attachment struct {
 
 func (s Slack) queryURL(message string) string {
 	escaped := url.QueryEscape(message)
-	return fmt.Sprintf(slackBaseUrl, s.Token, "%20hearthstone", escaped)
+	return fmt.Sprintf(slackBaseUrl, s.Token, "%23hearthstone", escaped)
 }
 
 func (s Slack) Push(e *webhook.PushEvent) {
