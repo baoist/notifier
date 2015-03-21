@@ -8,6 +8,7 @@ import (
 )
 
 type Service interface {
+	Ping()
 	Listen()
 }
 
@@ -17,7 +18,7 @@ func Connect(serviceName string, webhook settings.Webhook) {
 		panic(err)
 	}
 
-	service.Listen()
+	service.Ping()
 }
 
 func NewService(service string, data settings.Webhook) (serviceInterface Service, err error) {

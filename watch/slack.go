@@ -78,6 +78,10 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	}
 }
 
+func (s *Slack) Ping() {
+	fmt.Println("Pong")
+}
+
 func (s *Slack) Listen() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s)))
 }
