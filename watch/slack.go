@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,17 @@ import (
 
 var (
 	slackBaseUrl = "https://slack.com/api/chat.postMessage?token=%s&channel=%s&text=%s"
+	statusColors = map[string]string{
+		"error":   "#d60b09",
+		"warning": "#dfa138",
+		"success": "#36a755",
+		"default": "#30d8e5",
+	}
+	author = Author{
+		Name: "Software for Good",
+		Link: "https://github.com/softwareforgood",
+		Icon: "http://softwareforgood.com/wp-content/themes/sfg4/favicon.png?v=2",
+	}
 )
 
 type Slack struct {
@@ -19,23 +31,52 @@ type Slack struct {
 }
 
 type Attachment struct {
-	Attachments []struct {
-		Fallback    string
-		Color       string
-		Pretext     string
-		Author_name string
-		Author_link string
-		Author_icon string
-		Title       string
-		Title_link  string
-		Text        string
-		Image_url   string
-		Fields      []struct {
-			Title string
-			Value string
-			Short bool
-		}
+	Fallback   string `json:"fallback"`
+	Color      string `json:"color"`
+	Pretext    string `json:"pretext"`
+	AuthorName string `json:"author_name"`
+	AuthorLink string `json:"author_link"`
+	AuthorIcon string `json:"author_icon"`
+	Title      string `json:"title"`
+	TitleLink  string `json:"title_link"`
+	Text       string `json:"text"`
+	ImageURL   string `json:"image_url"`
+	Fields     []struct {
+		Title string `json:"title"`
+		Value string `json:"value"`
+		Short bool   `json:"short"`
+	} `json:"fields"`
+}
+
+type Attachments struct {
+	Attachments []Attachment `json:"attachments"`
+}
+
+type Author struct {
+	Name string `json:"name"`
+	Link string `json:"link"`
+	Icon string `json:"icon"`
+}
+
+func NewAttachment(level string, title string, text string) {
+	attachment := Attachment{
+		Color:      statusColors[level],
+		AuthorName: author.Name,
+		AuthorLink: author.Link,
+		AuthorIcon: author.Icon,
+		Title:      title,
+		Text:       text,
 	}
+
+	attachments := Attachments{[]Attachment{attachment}}
+
+	z, err := json.Marshal(attachments)
+	if err != nil {
+		log.Fatal("fail marshal")
+	}
+	fmt.Printf("%s\n", z)
+
+	//s.
 }
 
 func (s Slack) queryURL(message string) string {
@@ -48,7 +89,6 @@ func (s Slack) Reassignment(user string) {
 		return
 	}
 
-	fmt.Println(user)
 	for _, watcher := range s.Watchers {
 		fmt.Println(watcher)
 	}
@@ -90,6 +130,6 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 }
 
 func (s *Slack) Listen() {
-	fmt.Println(s.Watchers)
+	NewAttachment("error", "Title", "body")
 	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
 }
