@@ -87,8 +87,6 @@ func (s Slack) queryURL(channel string, message string) string {
 
 func (s *Slack) Notify(channels settings.Channels, message string) {
 	for _, channel := range channels {
-		fmt.Printf("Channel %v", channel)
-		fmt.Printf("Message %v", s.queryURL(channel, message))
 		_, err := http.Get(s.queryURL(channel, message))
 		if err != nil {
 			log.Println(err)
