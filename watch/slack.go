@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	slackBaseUrl = "https://slack.com/api/chat.postMessage?token=%s&channel=%s&text=%s"
+	slackBaseUrl = "https://slack.com/api/chat.postMessage?token=%s&channel=%s&attachments=[%s]"
 	statusColors = map[string]string{
 		"error":   "#d60b09",
 		"warning": "#dfa138",
@@ -49,35 +49,24 @@ type Attachment struct {
 	} `json:"fields"`
 }
 
-type Attachments struct {
-	Attachments []Attachment `json:"attachments"`
-}
-
 type Author struct {
 	Name string `json:"name"`
 	Link string `json:"link"`
 	Icon string `json:"icon"`
 }
 
-func NewAttachment(level string, title string, text string) {
-	attachment := Attachment{
+func NewAttachment(level string, title string, text string) (attachment Attachment) {
+	attachment = Attachment{
 		Color:      statusColors[level],
 		AuthorName: author.Name,
 		AuthorLink: author.Link,
 		AuthorIcon: author.Icon,
 		Title:      title,
 		Text:       text,
+		Fallback:   text,
 	}
 
-	attachments := Attachments{[]Attachment{attachment}}
-
-	z, err := json.Marshal(attachments)
-	if err != nil {
-		log.Fatal("fail marshal")
-	}
-	fmt.Printf("%s\n", z)
-
-	//s.
+	return attachment
 }
 
 func (s Slack) queryURL(channel string, message string) string {
@@ -85,24 +74,25 @@ func (s Slack) queryURL(channel string, message string) string {
 	return fmt.Sprintf(slackBaseUrl, s.Token, channel, escaped)
 }
 
-func (s *Slack) Notify(channels settings.Channels, message string) {
+func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 	for _, channel := range channels {
-		_, err := http.Get(s.queryURL(channel, message))
+		attachmentJSON, err := json.Marshal(attachment)
 		if err != nil {
-			log.Println(err)
+			log.Fatal("Unable to parse JSON.")
+		}
+
+		_, errz := http.Get(s.queryURL(channel, string(attachmentJSON)))
+		if errz != nil {
+			log.Println(errz)
 		}
 	}
 }
 
-func (s *Slack) Listen() {
-	NewAttachment("error", "Title", "body")
-	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
-}
-
 func (s Slack) Push(e *webhook.PushEvent) {
 	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
+	attachment := NewAttachment("success", "Pushed", message)
 
-	s.Notify(s.Public.PublicChannels(), message)
+	s.Notify(s.Public.PublicChannels(), attachment)
 }
 
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
@@ -119,12 +109,25 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	switch e.Action {
 	case "opened":
 		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
-		s.Notify(s.Public.PublicChannels(), message)
+		attachment := NewAttachment("success", "Opened Pull Request", message)
+
+		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
 		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-		s.Notify(s.Public.PublicChannels(), message)
+		attachment := NewAttachment("default", "Closed Pull Request", message)
+
+		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		message = "foo"
-		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), message)
+		message = fmt.Sprintf("%s assigned <%s|%s> pull request to you",
+			prefix,
+			e.PullRequest.HTMLURL,
+			e.PullRequest.Title)
+		attachment := NewAttachment("default", "Closed Pull Request", message)
+
+		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}
+}
+
+func (s *Slack) Listen() {
+	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
 }
