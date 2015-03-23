@@ -1,4 +1,9 @@
 - service: slack
-  secret: foo
-  token: bar
+  secret: github-secret
+  token: slack-token
   port: 8080
+  watchers:
+    - baoist
+  public:
+    - hearthstone
+
