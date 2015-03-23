@@ -10,7 +10,8 @@ type Webhook struct {
 	Secret   string
 	Token    string
 	Port     int
-	Watchers []string
+	Watchers Channels
+	Public   Channels
 }
 
 type Webhooks []Webhook

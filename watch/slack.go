@@ -28,6 +28,7 @@ var (
 
 type Slack struct {
 	settings.Webhook
+	settings.Channels
 }
 
 type Attachment struct {
@@ -79,28 +80,31 @@ func NewAttachment(level string, title string, text string) {
 	//s.
 }
 
-func (s Slack) queryURL(message string) string {
+func (s Slack) queryURL(channel string, message string) string {
 	escaped := url.QueryEscape(message)
-	return fmt.Sprintf(slackBaseUrl, s.Token, "%23hearthstone", escaped)
+	return fmt.Sprintf(slackBaseUrl, s.Token, channel, escaped)
 }
 
-func (s Slack) Reassignment(user string) {
-	if len(s.Watchers) == 0 {
-		return
+func (s *Slack) Notify(channels settings.Channels, message string) {
+	for _, channel := range channels {
+		fmt.Printf("Channel %v", channel)
+		fmt.Printf("Message %v", s.queryURL(channel, message))
+		_, err := http.Get(s.queryURL(channel, message))
+		if err != nil {
+			log.Println(err)
+		}
 	}
+}
 
-	for _, watcher := range s.Watchers {
-		fmt.Println(watcher)
-	}
+func (s *Slack) Listen() {
+	NewAttachment("error", "Title", "body")
+	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
 }
 
 func (s Slack) Push(e *webhook.PushEvent) {
 	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
 
-	_, err := http.Get(s.queryURL(message))
-	if err != nil {
-		log.Println(err)
-	}
+	s.Notify(s.Public.PublicChannels(), message)
 }
 
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
@@ -117,19 +121,12 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	switch e.Action {
 	case "opened":
 		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
+		s.Notify(s.Public.PublicChannels(), message)
 	case "closed":
 		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-	default:
-		message = fmt.Sprintf("%s new action (%s) on pull request %s", prefix, e.Action, suffix)
+		s.Notify(s.Public.PublicChannels(), message)
+	case "assigned":
+		message = "foo"
+		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), message)
 	}
-
-	_, err := http.Get(s.queryURL(message))
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (s *Slack) Listen() {
-	NewAttachment("error", "Title", "body")
-	http.ListenAndServe(fmt.Sprintf(":%d", s.Port), webhook.New(s.Secret, s))
 }
