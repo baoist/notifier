@@ -19,11 +19,6 @@ var (
 		"success": "#36a755",
 		"default": "#30d8e5",
 	}
-	author = Author{
-		Name: "Software for Good",
-		Link: "https://github.com/softwareforgood",
-		Icon: "http://softwareforgood.com/wp-content/themes/sfg4/favicon.png?v=2",
-	}
 )
 
 type Slack struct {
@@ -55,12 +50,12 @@ type Author struct {
 	Icon string `json:"icon"`
 }
 
-func NewAttachment(level string, title string, text string) (attachment Attachment) {
+func (s Slack) NewAttachment(level string, title string, text string) (attachment Attachment) {
 	attachment = Attachment{
 		Color:      statusColors[level],
-		AuthorName: author.Name,
-		AuthorLink: author.Link,
-		AuthorIcon: author.Icon,
+		AuthorName: s.Author.Name,
+		AuthorLink: s.Author.Link,
+		AuthorIcon: s.Author.Icon,
 		Title:      title,
 		Text:       text,
 		Fallback:   text,
@@ -70,8 +65,14 @@ func NewAttachment(level string, title string, text string) (attachment Attachme
 }
 
 func (s Slack) queryURL(channel string, message string) string {
-	escaped := url.QueryEscape(message)
-	return fmt.Sprintf(slackBaseUrl, s.Token, channel, escaped)
+	encoded := struct {
+		channel string
+		message string
+	}{
+		url.QueryEscape(channel),
+		url.QueryEscape(message),
+	}
+	return fmt.Sprintf(slackBaseUrl, s.Token, encoded.channel, encoded.message)
 }
 
 func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
@@ -90,7 +91,7 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 
 func (s Slack) Push(e *webhook.PushEvent) {
 	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
-	attachment := NewAttachment("success", "Pushed", message)
+	attachment := s.NewAttachment("success", "Pushed", message)
 
 	s.Notify(s.Public.PublicChannels(), attachment)
 }
@@ -98,31 +99,33 @@ func (s Slack) Push(e *webhook.PushEvent) {
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	var message string
 
-	prefix := fmt.Sprintf("[%s]", e.PullRequest.Head.Repo.FullName)
-	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>",
+	prefix := fmt.Sprintf("[<%s|%s>]", e.PullRequest.Head.Repo.HTMLURL, e.PullRequest.Head.Repo.FullName)
+	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>.\n%s",
 		e.PullRequest.HTMLURL,
 		e.Number,
 		e.PullRequest.Title,
-		e.PullRequest.User.URL,
-		e.PullRequest.User.Login)
+		e.PullRequest.User.HTMLURL,
+		e.PullRequest.User.Login,
+		e.PullRequest.Body)
 
 	switch e.Action {
 	case "opened":
 		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
-		attachment := NewAttachment("success", "Opened Pull Request", message)
+		attachment := s.NewAttachment("success", "Opened Pull Request", message)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
 		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-		attachment := NewAttachment("default", "Closed Pull Request", message)
+		attachment := s.NewAttachment("default", "Closed Pull Request", message)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		message = fmt.Sprintf("%s assigned <%s|%s> pull request to you",
+		message = fmt.Sprintf("%s assigned pull request <%s|%s> to you.\n%s",
 			prefix,
 			e.PullRequest.HTMLURL,
-			e.PullRequest.Title)
-		attachment := NewAttachment("default", "Closed Pull Request", message)
+			e.PullRequest.Title,
+			e.PullRequest.Body)
+		attachment := s.NewAttachment("default", "Assigned Pull Request To You", message)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}
