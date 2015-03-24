@@ -18,9 +18,9 @@ type Webhook struct {
 type Webhooks []Webhook
 
 type Author struct {
-	Name string
-	Link string
-	Icon string
+	Name string `json:"name"`
+	Link string `json:"link"`
+	Icon string `json:"icon"`
 }
 
 func Import(path string) Webhooks {
