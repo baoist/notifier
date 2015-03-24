@@ -89,11 +89,32 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 	}
 }
 
-func (s Slack) Push(e *webhook.PushEvent) {
-	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
-	attachment := s.NewAttachment("success", "Pushed", message)
+func (s Slack) Issue(e *webhook.IssuesEvent) {
+	var title string
 
-	s.Notify(s.Public.PublicChannels(), attachment)
+	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
+	body := fmt.Sprintf("<%s|%s>.\n%s",
+		e.Issue.HTMLURL,
+		e.Issue.Title,
+		e.Issue.Body)
+
+	switch e.Action {
+	case "opened":
+		title = fmt.Sprintf("%s Issue created by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", title, body)
+
+		s.Notify(s.Public.PublicChannels(), attachment)
+	case "closed":
+		title = fmt.Sprintf("%s Issue deleted by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", title, body)
+
+		s.Notify(s.Public.PublicChannels(), attachment)
+	case "assigned":
+		title = fmt.Sprintf("%s Issue assigned to you by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("default", title, body)
+
+		s.Notify(s.Watchers.UserChannels(e.Issue.Assignee.Login), attachment)
+	}
 }
 
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
