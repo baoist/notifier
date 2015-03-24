@@ -89,36 +89,29 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 	}
 }
 
-func (s Slack) Issue(e *webhook.PushEvent) {
-	var message string
+func (s Slack) Issue(e *webhook.IssuesEvent) {
+	var title string
 
-	prefix := fmt.Sprintf("[<%s|%s>]", e.Issue.Head.Repo.HTMLURL, e.Issue.Head.Repo.FullName)
-	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>.\n%s",
+	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
+	body := fmt.Sprintf("<%s|%s>.\n%s",
 		e.Issue.HTMLURL,
-		e.Number,
 		e.Issue.Title,
-		e.Issue.User.HTMLURL,
-		e.Issue.User.Login,
 		e.Issue.Body)
 
 	switch e.Action {
 	case "opened":
-		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
-		attachment := s.NewAttachment("success", "Opened Pull Request", message)
+		title = fmt.Sprintf("%s Issue created by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", title, body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
-		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-		attachment := s.NewAttachment("default", "Closed Pull Request", message)
+		title = fmt.Sprintf("%s Issue deleted by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", title, body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		message = fmt.Sprintf("%s assigned pull request <%s|%s> to you.\n%s",
-			prefix,
-			e.Issue.HTMLURL,
-			e.Issue.Title,
-			e.Issue.Body)
-		attachment := s.NewAttachment("default", "Assigned Pull Request To You", message)
+		title = fmt.Sprintf("%s Issue assigned to you by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("default", title, body)
 
 		s.Notify(s.Watchers.UserChannels(e.Issue.Assignee.Login), attachment)
 	}
