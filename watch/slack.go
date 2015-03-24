@@ -19,11 +19,6 @@ var (
 		"success": "#36a755",
 		"default": "#30d8e5",
 	}
-	author = Author{
-		Name: "Software for Good",
-		Link: "https://github.com/softwareforgood",
-		Icon: "http://softwareforgood.com/wp-content/themes/sfg4/favicon.png?v=2",
-	}
 )
 
 type Slack struct {
@@ -55,12 +50,12 @@ type Author struct {
 	Icon string `json:"icon"`
 }
 
-func NewAttachment(level string, title string, text string) (attachment Attachment) {
+func (s Slack) NewAttachment(level string, title string, text string) (attachment Attachment) {
 	attachment = Attachment{
 		Color:      statusColors[level],
-		AuthorName: author.Name,
-		AuthorLink: author.Link,
-		AuthorIcon: author.Icon,
+		AuthorName: s.Author.Name,
+		AuthorLink: s.Author.Link,
+		AuthorIcon: s.Author.Icon,
 		Title:      title,
 		Text:       text,
 		Fallback:   text,
@@ -90,7 +85,7 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 
 func (s Slack) Push(e *webhook.PushEvent) {
 	message := fmt.Sprintf("%s pushed to <%s|%s>", e.Pusher.Email, e.Repository.URL, e.Repository.Name)
-	attachment := NewAttachment("success", "Pushed", message)
+	attachment := s.NewAttachment("success", "Pushed", message)
 
 	s.Notify(s.Public.PublicChannels(), attachment)
 }
@@ -109,12 +104,12 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	switch e.Action {
 	case "opened":
 		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
-		attachment := NewAttachment("success", "Opened Pull Request", message)
+		attachment := s.NewAttachment("success", "Opened Pull Request", message)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
 		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-		attachment := NewAttachment("default", "Closed Pull Request", message)
+		attachment := s.NewAttachment("default", "Closed Pull Request", message)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
@@ -122,7 +117,7 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 			prefix,
 			e.PullRequest.HTMLURL,
 			e.PullRequest.Title)
-		attachment := NewAttachment("default", "Closed Pull Request", message)
+		attachment := s.NewAttachment("default", "Closed Pull Request", message)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}

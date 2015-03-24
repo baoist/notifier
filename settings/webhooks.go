@@ -12,9 +12,16 @@ type Webhook struct {
 	Port     int
 	Watchers Channels
 	Public   Channels
+	Author   Author
 }
 
 type Webhooks []Webhook
+
+type Author struct {
+	Name string
+	Link string
+	Icon string
+}
 
 func Import(path string) Webhooks {
 	file, err := ioutil.ReadFile(path)
