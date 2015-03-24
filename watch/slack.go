@@ -44,12 +44,6 @@ type Attachment struct {
 	} `json:"fields"`
 }
 
-type Author struct {
-	Name string `json:"name"`
-	Link string `json:"link"`
-	Icon string `json:"icon"`
-}
-
 func (s Slack) NewAttachment(level string, pretext string, title string, text string) (attachment Attachment) {
 	attachment = Attachment{
 		Color:      statusColors[level],
@@ -90,55 +84,53 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 	}
 }
 
-func (s Slack) Issue(e *webhook.IssuesEvent) {
-	var pretext string
+func (s Slack) pretext(action string, repository webhook.Repository, user webhook.User) string {
+	prefix := fmt.Sprintf("[<%s|%s>]", repository.HTMLURL, repository.FullName)
 
-	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
-	title := fmt.Sprintf("<%s|%s>",
-		e.Issue.HTMLURL,
-		e.Issue.Title)
+	return fmt.Sprintf("%s %s by <%s|%s>",
+		prefix,
+		action,
+		user.HTMLURL,
+		user.Login)
+}
+
+func (s Slack) Issue(e *webhook.IssuesEvent) {
+	title := fmt.Sprintf("<%s|%s>", e.Issue.HTMLURL, e.Issue.Title)
 
 	switch e.Action {
-	case "opened":
-		pretext = fmt.Sprintf("%s Issue created by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("success", pretext, title, e.Issue.Body)
-
-		s.Notify(s.Public.PublicChannels(), attachment)
-	case "closed":
-		pretext = fmt.Sprintf("%s Issue deleted by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("success", pretext, title, e.Issue.Body)
+	case "opened", "closed":
+		attachment := s.NewAttachment("success",
+			s.pretext(fmt.Sprintf("Issue %s", e.Action), e.Repository, e.Issue.User),
+			title,
+			e.Issue.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		pretext = fmt.Sprintf("%s Issue assigned to you by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("default", pretext, title, e.Issue.Body)
+		attachment := s.NewAttachment("default",
+			s.pretext("Issue assigned to you", e.Repository, e.Issue.User),
+			title,
+			e.Issue.Body)
 
 		s.Notify(s.Watchers.UserChannels(e.Issue.Assignee.Login), attachment)
 	}
 }
 
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
-	var pretext string
-
-	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
-	title := fmt.Sprintf("<%s|%s>",
-		e.PullRequest.HTMLURL,
-		e.PullRequest.Title)
+	title := fmt.Sprintf("<%s|%s>", e.PullRequest.HTMLURL, e.PullRequest.Title)
 
 	switch e.Action {
-	case "opened":
-		pretext = fmt.Sprintf("%s Pull Request created by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
-		attachment := s.NewAttachment("success", pretext, title, e.PullRequest.Body)
-
-		s.Notify(s.Public.PublicChannels(), attachment)
-	case "closed":
-		pretext = fmt.Sprintf("%s Pull Request deleted by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
-		attachment := s.NewAttachment("success", pretext, title, e.PullRequest.Body)
+	case "opened", "closed":
+		attachment := s.NewAttachment("success",
+			s.pretext(fmt.Sprintf("Pull Request %s", e.Action), e.Repository, e.PullRequest.User),
+			title,
+			e.PullRequest.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		pretext = fmt.Sprintf("%s Pull Request assigned to you by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
-		attachment := s.NewAttachment("default", pretext, title, e.PullRequest.Body)
+		attachment := s.NewAttachment("success",
+			s.pretext("Pull Request assigned to you", e.Repository, e.PullRequest.User),
+			title,
+			e.PullRequest.Body)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}
