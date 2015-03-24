@@ -125,7 +125,7 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 			e.PullRequest.HTMLURL,
 			e.PullRequest.Title,
 			e.PullRequest.Body)
-		attachment := s.NewAttachment("default", "Closed Pull Request", message)
+		attachment := s.NewAttachment("default", "Assigned Pull Request To You", message)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}
