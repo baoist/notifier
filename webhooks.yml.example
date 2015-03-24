@@ -6,4 +6,7 @@
     - baoist
   public:
     - hearthstone
-
+  author:
+    name: Software for Good
+    link: https://github.com/softwareforgood
+    icon: http://softwareforgood.com/wp-content/themes/sfg4/favicon.png?v=2

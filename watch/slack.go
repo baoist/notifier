@@ -65,8 +65,14 @@ func (s Slack) NewAttachment(level string, title string, text string) (attachmen
 }
 
 func (s Slack) queryURL(channel string, message string) string {
-	escaped := url.QueryEscape(message)
-	return fmt.Sprintf(slackBaseUrl, s.Token, channel, escaped)
+	encoded := struct {
+		channel string
+		message string
+	}{
+		url.QueryEscape(channel),
+		url.QueryEscape(message),
+	}
+	return fmt.Sprintf(slackBaseUrl, s.Token, encoded.channel, encoded.message)
 }
 
 func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
@@ -93,13 +99,14 @@ func (s Slack) Push(e *webhook.PushEvent) {
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 	var message string
 
-	prefix := fmt.Sprintf("[%s]", e.PullRequest.Head.Repo.FullName)
-	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>",
+	prefix := fmt.Sprintf("[<%s|%s>]", e.PullRequest.Head.Repo.HTMLURL, e.PullRequest.Head.Repo.FullName)
+	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>.\n%s",
 		e.PullRequest.HTMLURL,
 		e.Number,
 		e.PullRequest.Title,
-		e.PullRequest.User.URL,
-		e.PullRequest.User.Login)
+		e.PullRequest.User.HTMLURL,
+		e.PullRequest.User.Login,
+		e.PullRequest.Body)
 
 	switch e.Action {
 	case "opened":
@@ -113,10 +120,11 @@ func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		message = fmt.Sprintf("%s assigned <%s|%s> pull request to you",
+		message = fmt.Sprintf("%s assigned pull request <%s|%s> to you.\n%s",
 			prefix,
 			e.PullRequest.HTMLURL,
-			e.PullRequest.Title)
+			e.PullRequest.Title,
+			e.PullRequest.Body)
 		attachment := s.NewAttachment("default", "Closed Pull Request", message)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
