@@ -50,9 +50,10 @@ type Author struct {
 	Icon string `json:"icon"`
 }
 
-func (s Slack) NewAttachment(level string, title string, text string) (attachment Attachment) {
+func (s Slack) NewAttachment(level string, pretext string, title string, text string) (attachment Attachment) {
 	attachment = Attachment{
 		Color:      statusColors[level],
+		Pretext:    pretext,
 		AuthorName: s.Author.Name,
 		AuthorLink: s.Author.Link,
 		AuthorIcon: s.Author.Icon,
@@ -90,63 +91,54 @@ func (s *Slack) Notify(channels settings.Channels, attachment Attachment) {
 }
 
 func (s Slack) Issue(e *webhook.IssuesEvent) {
-	var title string
+	var pretext string
 
 	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
-	body := fmt.Sprintf("<%s|%s>.\n%s",
+	title := fmt.Sprintf("<%s|%s>",
 		e.Issue.HTMLURL,
-		e.Issue.Title,
-		e.Issue.Body)
+		e.Issue.Title)
 
 	switch e.Action {
 	case "opened":
-		title = fmt.Sprintf("%s Issue created by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("success", title, body)
+		pretext = fmt.Sprintf("%s Issue created by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", pretext, title, e.Issue.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
-		title = fmt.Sprintf("%s Issue deleted by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("success", title, body)
+		pretext = fmt.Sprintf("%s Issue deleted by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("success", pretext, title, e.Issue.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		title = fmt.Sprintf("%s Issue assigned to you by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
-		attachment := s.NewAttachment("default", title, body)
+		pretext = fmt.Sprintf("%s Issue assigned to you by <%s|%s>", prefix, e.Issue.User.HTMLURL, e.Issue.User.Login)
+		attachment := s.NewAttachment("default", pretext, title, e.Issue.Body)
 
 		s.Notify(s.Watchers.UserChannels(e.Issue.Assignee.Login), attachment)
 	}
 }
 
 func (s Slack) PullRequest(e *webhook.PullRequestEvent) {
-	var message string
+	var pretext string
 
-	prefix := fmt.Sprintf("[<%s|%s>]", e.PullRequest.Head.Repo.HTMLURL, e.PullRequest.Head.Repo.FullName)
-	suffix := fmt.Sprintf("<%s|#%v %s> by <%s|%s>.\n%s",
+	prefix := fmt.Sprintf("[<%s|%s>]", e.Repository.HTMLURL, e.Repository.FullName)
+	title := fmt.Sprintf("<%s|%s>",
 		e.PullRequest.HTMLURL,
-		e.Number,
-		e.PullRequest.Title,
-		e.PullRequest.User.HTMLURL,
-		e.PullRequest.User.Login,
-		e.PullRequest.Body)
+		e.PullRequest.Title)
 
 	switch e.Action {
 	case "opened":
-		message = fmt.Sprintf("%s opened a new pull request %s", prefix, suffix)
-		attachment := s.NewAttachment("success", "Opened Pull Request", message)
+		pretext = fmt.Sprintf("%s Pull Request created by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
+		attachment := s.NewAttachment("success", pretext, title, e.PullRequest.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "closed":
-		message = fmt.Sprintf("%s deleted pull request %s", prefix, suffix)
-		attachment := s.NewAttachment("default", "Closed Pull Request", message)
+		pretext = fmt.Sprintf("%s Pull Request deleted by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
+		attachment := s.NewAttachment("success", pretext, title, e.PullRequest.Body)
 
 		s.Notify(s.Public.PublicChannels(), attachment)
 	case "assigned":
-		message = fmt.Sprintf("%s assigned pull request <%s|%s> to you.\n%s",
-			prefix,
-			e.PullRequest.HTMLURL,
-			e.PullRequest.Title,
-			e.PullRequest.Body)
-		attachment := s.NewAttachment("default", "Assigned Pull Request To You", message)
+		pretext = fmt.Sprintf("%s Pull Request assigned to you by <%s|%s>", prefix, e.PullRequest.User.HTMLURL, e.PullRequest.User.Login)
+		attachment := s.NewAttachment("default", pretext, title, e.PullRequest.Body)
 
 		s.Notify(s.Watchers.UserChannels(e.PullRequest.Assignee.Login), attachment)
 	}
